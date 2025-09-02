@@ -1,0 +1,124 @@
+import os
+import threading
+import time
+from typing import Any, Dict, Optional
+
+from flask import Flask, jsonify, render_template
+
+from app.scan import scan_latest_created_contract, ScanError
+
+
+def create_app() -> Flask:
+    app = Flask(__name__)
+
+    # --- Shared state for latest scan ---
+    state: Dict[str, Any] = {
+        "latest": None,  # type: Optional[Dict[str, Any]]
+        "last_run_utc": None,  # type: Optional[str]
+        "last_error": None,  # type: Optional[str]
+        "runs": 0,
+        "started_at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        "history": [],  # list of recent results, most recent first
+    }
+    lock = threading.Lock()
+
+    interval_seconds = int(os.environ.get("SCAN_INTERVAL_SECONDS", "60"))
+    chain_id = int(os.environ.get("CHAIN_ID", "8453"))
+    deployer = os.environ.get("DEPLOYER")  # default handled by scan function
+    history_max = int(os.environ.get("HISTORY_MAX", "50"))
+
+    stop_event = threading.Event()
+
+    def scanner_loop():
+        # Initial slight delay so app can start before first scan logs
+        time.sleep(1.0)
+        while not stop_event.is_set():
+            started = time.time()
+            started_utc = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(started))
+            latest = None
+            err: Optional[str] = None
+            try:
+                api_key = os.environ.get("ETHERSCAN_API_KEY") or "WNX3XI8JS1WEC7WGMU8S3DS1UMYD1ZG4FZ"
+                latest = scan_latest_created_contract(
+                    api_key=api_key,
+                    deployer=deployer,
+                    chain_id=chain_id,
+                )
+                if latest:
+                    print(
+                        f"[scan {started_utc}] Contract {latest['contract']} | Block {latest['block']} | Tx {latest['tx']}"
+                    )
+                else:
+                    print(f"[scan {started_utc}] No recent contract creation found.")
+            except ScanError as e:
+                err = str(e)
+                print(f"[scan {started_utc}] ERROR: {err}")
+
+            with lock:
+                prev_latest = state.get("latest") or {}
+                # Update history on change (dedupe by tx hash)
+                if latest and latest.get("tx") and latest.get("tx") != prev_latest.get("tx"):
+                    hist = state.get("history") or []
+                    # Insert newest at the beginning
+                    hist.insert(0, latest)
+                    # Dedupe by tx while preserving order and cap to history_max
+                    seen = set()
+                    deduped = []
+                    for item in hist:
+                        txh = item.get("tx")
+                        if not txh or txh in seen:
+                            continue
+                        seen.add(txh)
+                        deduped.append(item)
+                        if len(deduped) >= history_max:
+                            break
+                    state["history"] = deduped
+                state["latest"] = latest
+                state["last_run_utc"] = started_utc
+                state["last_error"] = err
+                state["runs"] = int(state.get("runs", 0)) + 1
+
+            # Sleep until next interval, but allow fast shutdown via event
+            stop_event.wait(interval_seconds)
+
+    # Start background thread
+    t = threading.Thread(target=scanner_loop, name="scanner", daemon=True)
+    t.start()
+    # Print a startup message immediately (compatible with Flask 2.x/3.x)
+    print(
+        f"Scanner started. Interval={interval_seconds}s, Chain={chain_id}, Deployer={deployer or 'default'}"
+    )
+
+    @app.route("/")
+    def index():  # type: ignore[override]
+        with lock:
+            view = dict(state)  # shallow copy for template
+        view.update(
+            {
+                "interval_seconds": interval_seconds,
+                "chain_id": chain_id,
+                "deployer": deployer or "0x048ef1062cbb39B338Ac2685dA72adf104b4cEF5",
+                "history_max": history_max,
+            }
+        )
+        return render_template("index.html", **view)
+
+    @app.route("/api/latest")
+    def api_latest():  # type: ignore[override]
+        with lock:
+            return jsonify(state)
+
+    @app.route("/healthz")
+    def healthz():  # type: ignore[override]
+        return "ok"
+
+    return app
+
+
+if __name__ == "__main__":
+    # Running directly: useful for local dev
+    app = create_app()
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8000"))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host=host, port=port, debug=debug)

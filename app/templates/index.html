@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Latest Contract Deployment (Base)</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
+      h1 { margin-bottom: 0.25rem; }
+      .muted { color: #777; font-size: 0.9rem; }
+      .grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.35rem 1rem; margin-top: 1rem; }
+      .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      a { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <h1>Latest Contract Deployment</h1>
+    <div class="muted">Chain {{ chain_id }} · Deployer <code>{{ deployer }}</code> · Scans every {{ interval_seconds }}s</div>
+
+    <div class="card" id="status">
+      {% if latest %}
+      <div class="grid">
+        <div>Last Scan</div><div><strong>{{ last_run_utc }}</strong></div>
+        <div>Contract</div><div><a target="_blank" href="https://basescan.org/address/{{ latest.contract }}">{{ latest.contract }}</a></div>
+        <div>Block</div><div>{{ latest.block }}</div>
+        <div>Tx</div><div><a target="_blank" href="https://basescan.org/tx/{{ latest.tx }}">{{ latest.tx }}</a></div>
+        <div>UTC</div><div>{{ latest.utc }}</div>
+      </div>
+      {% else %}
+      <div>No result yet. Last scan: {{ last_run_utc or 'pending...' }}</div>
+      {% endif %}
+      {% if last_error %}
+      <div style="margin-top: 0.5rem; color: #b00020;">Error: {{ last_error }}</div>
+      {% endif %}
+    </div>
+
+    <div class="card" id="history">
+      <h2 style="margin-top:0">Last {{ history_max }} Deployments</h2>
+      {% if history and history|length > 0 %}
+      <div style="overflow:auto">
+        <table style="width:100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">UTC</th>
+              <th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Contract</th>
+              <th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Block</th>
+              <th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Tx</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+            <tr>
+              <td style="padding: 0.25rem; border-bottom: 1px solid #eee; white-space: nowrap;">{{ item.utc }}</td>
+              <td style="padding: 0.25rem; border-bottom: 1px solid #eee;"><a target="_blank" href="https://basescan.org/address/{{ item.contract }}">{{ item.contract }}</a></td>
+              <td style="padding: 0.25rem; border-bottom: 1px solid #eee;">{{ item.block }}</td>
+              <td style="padding: 0.25rem; border-bottom: 1px solid #eee;"><a target="_blank" href="https://basescan.org/tx/{{ item.tx }}">{{ item.tx }}</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div>No history yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="muted" style="margin-top: 0.75rem;">Total runs: {{ runs }} · Started: {{ started_at }}</div>
+
+    <script>
+      async function refresh() {
+        try {
+          const r = await fetch('/api/latest', {cache: 'no-store'});
+          if (!r.ok) return;
+          const data = await r.json();
+          const status = document.getElementById('status');
+          let html = '';
+          if (data.latest) {
+            html += '<div class="grid">';
+            html += '<div>Last Scan</div><div><strong>' + (data.last_run_utc || '') + '</strong></div>';
+            const addr = data.latest.contract;
+            const tx = data.latest.tx;
+            html += '<div>Contract</div><div><a target="_blank" href="https://basescan.org/address/' + addr + '">' + addr + '</a></div>';
+            html += '<div>Block</div><div>' + (data.latest.block || '') + '</div>';
+            html += '<div>Tx</div><div><a target="_blank" href="https://basescan.org/tx/' + tx + '">' + tx + '</a></div>';
+            html += '<div>UTC</div><div>' + (data.latest.utc || '') + '</div>';
+            html += '</div>';
+          } else {
+            html += '<div>No result yet. Last scan: ' + (data.last_run_utc || 'pending...') + '</div>';
+          }
+          if (data.last_error) {
+            html += '<div style="margin-top: 0.5rem; color: #b00020;">Error: ' + data.last_error + '</div>';
+          }
+          status.innerHTML = html;
+
+          // Render history table
+          const historyEl = document.getElementById('history');
+          let h = '<h2 style="margin-top:0">Last ' + ({{ history_max }} || 50) + ' Deployments</h2>';
+          const history = data.history || [];
+          if (history.length > 0) {
+            h += '<div style="overflow:auto">';
+            h += '<table style="width:100%; border-collapse: collapse;">';
+            h += '<thead><tr>';
+            h += '<th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">UTC</th>';
+            h += '<th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Contract</th>';
+            h += '<th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Block</th>';
+            h += '<th style="text-align:left; padding: 0.25rem; border-bottom: 1px solid #ccc;">Tx</th>';
+            h += '</tr></thead><tbody>';
+            for (const item of history) {
+              const c = item.contract;
+              const t = item.tx;
+              h += '<tr>';
+              h += '<td style="padding: 0.25rem; border-bottom: 1px solid #eee; white-space: nowrap;">' + (item.utc || '') + '</td>';
+              h += '<td style="padding: 0.25rem; border-bottom: 1px solid #eee;"><a target="_blank" href="https://basescan.org/address/' + c + '">' + c + '</a></td>';
+              h += '<td style="padding: 0.25rem; border-bottom: 1px solid #eee;">' + (item.block || '') + '</td>';
+              h += '<td style="padding: 0.25rem; border-bottom: 1px solid #eee;"><a target="_blank" href="https://basescan.org/tx/' + t + '">' + t + '</a></td>';
+              h += '</tr>';
+            }
+            h += '</tbody></table></div>';
+          } else {
+            h += '<div>No history yet.</div>';
+          }
+          historyEl.innerHTML = h;
+        } catch (e) {
+          // ignore transient errors
+        }
+      }
+      setInterval(refresh, 10000);
+    </script>
+  </body>
+  </html>

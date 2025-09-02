@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Latest Contract Deployments (Base)</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
+      h1 { margin-bottom: 0.25rem; }
+      .muted { color: #777; font-size: 0.9rem; }
+      .grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.35rem 1rem; margin-top: 1rem; }
+      .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      a { text-decoration: none; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 0.25rem; border-bottom: 1px solid #eee; text-align: left; }
+      th { border-bottom-color: #ccc; }
+    </style>
+  </head>
+  <body>
+    <h1>Latest Contract Deployment</h1>
+    <div class="muted" id="meta">Loading config...</div>
+
+    <div class="card" id="status">Loading...</div>
+    <div class="card" id="history">Loading history...</div>
+
+    <script>
+      async function fetchState() {
+        const r = await fetch('/api/latest', { cache: 'no-store' });
+        if (!r.ok) throw new Error('Failed to fetch');
+        return r.json();
+      }
+
+      function render(state) {
+        const meta = document.getElementById('meta');
+        const status = document.getElementById('status');
+        const historyEl = document.getElementById('history');
+
+        const chain = state.chain_id || 8453;
+        const deployer = state.deployer || '';
+        const interval = state.interval_seconds || 60;
+        const historyMax = state.history_max || 50;
+        meta.textContent = `Chain ${chain} · Deployer ${deployer} · Scans every ${interval}s`;
+
+        let html = '';
+        if (state.latest) {
+          const addr = state.latest.contract;
+          const tx = state.latest.tx;
+          html += '<div class="grid">';
+          html += '<div>Last Scan</div><div><strong>' + (state.last_run_utc || '') + '</strong></div>';
+          html += '<div>Contract</div><div><a target="_blank" href="https://basescan.org/address/' + addr + '">' + addr + '</a></div>';
+          html += '<div>Block</div><div>' + (state.latest.block || '') + '</div>';
+          html += '<div>Tx</div><div><a target="_blank" href="https://basescan.org/tx/' + tx + '">' + tx + '</a></div>';
+          html += '<div>UTC</div><div>' + (state.latest.utc || '') + '</div>';
+          html += '</div>';
+        } else {
+          html += '<div>No result yet. Last scan: ' + (state.last_run_utc || 'pending...') + '</div>';
+        }
+        if (state.last_error) {
+          html += '<div style="margin-top: 0.5rem; color: #b00020;">Error: ' + state.last_error + '</div>';
+        }
+        status.innerHTML = html;
+
+        let h = '<h2 style="margin-top:0">Last ' + historyMax + ' Deployments</h2>';
+        const history = state.history || [];
+        if (history.length > 0) {
+          h += '<div style="overflow:auto">';
+          h += '<table><thead><tr>';
+          h += '<th>UTC</th><th>Contract</th><th>Block</th><th>Tx</th>';
+          h += '</tr></thead><tbody>';
+          for (const item of history) {
+            const c = item.contract;
+            const t = item.tx;
+            h += '<tr>';
+            h += '<td style="white-space: nowrap;">' + (item.utc || '') + '</td>';
+            h += '<td><a target="_blank" href="https://basescan.org/address/' + c + '">' + c + '</a></td>';
+            h += '<td>' + (item.block || '') + '</td>';
+            h += '<td><a target="_blank" href="https://basescan.org/tx/' + t + '">' + t + '</a></td>';
+            h += '</tr>';
+          }
+          h += '</tbody></table></div>';
+        } else {
+          h += '<div>No history yet.</div>';
+        }
+        historyEl.innerHTML = h;
+      }
+
+      async function tick() {
+        try {
+          const state = await fetchState();
+          render(state);
+        } catch (e) {
+          // ignore transient errors
+        }
+      }
+
+      tick();
+      setInterval(tick, 10000);
+    </script>
+  </body>
+  </html>
+
