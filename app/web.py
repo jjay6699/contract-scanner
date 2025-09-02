@@ -26,6 +26,8 @@ def create_app() -> Flask:
     chain_id = int(os.environ.get("CHAIN_ID", "8453"))
     deployer = os.environ.get("DEPLOYER")  # default handled by scan function
     history_max = int(os.environ.get("HISTORY_MAX", "50"))
+    bootstrap_count = int(os.environ.get("BOOTSTRAP_COUNT", "5"))
+    bootstrap_pages = int(os.environ.get("BOOTSTRAP_MAX_PAGES", "30"))
 
     stop_event = threading.Event()
 
@@ -39,11 +41,49 @@ def create_app() -> Flask:
             err: Optional[str] = None
             try:
                 api_key = os.environ.get("ETHERSCAN_API_KEY") or "WNX3XI8JS1WEC7WGMU8S3DS1UMYD1ZG4FZ"
-                latest = scan_latest_created_contract(
-                    api_key=api_key,
-                    deployer=deployer,
-                    chain_id=chain_id,
-                )
+                # Bootstrap: on first run, prefill last N deployments
+                first_run = int(state.get("runs", 0)) == 0 and not state.get("history")
+                if first_run and bootstrap_count > 0:
+                    from app.scan import scan_recent_created_contracts
+
+                    recent = scan_recent_created_contracts(
+                        api_key=api_key,
+                        deployer=deployer,
+                        chain_id=chain_id,
+                        max_pages=bootstrap_pages,
+                        limit=bootstrap_count,
+                    )
+                    if recent:
+                        latest = recent[0]
+                        print(
+                            f"[bootstrap {started_utc}] Loaded {len(recent)} recent deployments; latest {latest['contract']}"
+                        )
+                        with lock:
+                            # dedupe + cap
+                            seen = set()
+                            deduped = []
+                            for item in recent:
+                                txh = item.get("tx")
+                                if not txh or txh in seen:
+                                    continue
+                                seen.add(txh)
+                                deduped.append(item)
+                                if len(deduped) >= history_max:
+                                    break
+                            state["history"] = deduped
+                            state["latest"] = latest
+                            state["last_run_utc"] = started_utc
+                            state["last_error"] = None
+                            state["runs"] = int(state.get("runs", 0)) + 1
+                    else:
+                        print(f"[bootstrap {started_utc}] No recent deployments found for bootstrap.")
+                else:
+                    # Regular incremental scan: just fetch the latest and insert when new
+                    latest = scan_latest_created_contract(
+                        api_key=api_key,
+                        deployer=deployer,
+                        chain_id=chain_id,
+                    )
                 if latest:
                     print(
                         f"[scan {started_utc}] Contract {latest['contract']} | Block {latest['block']} | Tx {latest['tx']}"

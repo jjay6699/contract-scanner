@@ -130,3 +130,63 @@ def scan_latest_created_contract(
         time.sleep(0.12)  # polite to API
     return None
 
+
+def scan_recent_created_contracts(
+    api_key: Optional[str] = None,
+    deployer: Optional[str] = None,
+    chain_id: int = 8453,
+    max_pages: int = 30,
+    page_size: int = 100,
+    timeout: int = 12,
+    api_base: str = ETHERSCAN_V2,
+    limit: int = 5,
+):
+    """Collect up to `limit` recent CREATE/CREATE2 contract deployments.
+
+    Returns a list of dicts like scan_latest_created_contract, most recent first.
+    """
+    api_key = api_key or _get_env("ETHERSCAN_API_KEY")
+    if not api_key:
+        raise ScanError("ETHERSCAN_API_KEY is not set")
+
+    deployer = (deployer or _get_env("DEPLOYER") or "0x048ef1062cbb39B338Ac2685dA72adf104b4cEF5").lower()
+
+    results = []
+    seen_txs = set()
+
+    for page in range(1, max_pages + 1):
+        txs = _fetch_txs_page(api_key, chain_id, deployer, page, page_size, timeout, api_base)
+        for tx in txs:
+            txh = tx.get("hash")
+            if not txh or txh in seen_txs:
+                continue
+            internals = _fetch_internal_for_tx(api_key, chain_id, txh, timeout, api_base)
+            found = None
+            for it in internals:
+                caddr = (it.get("contractAddress") or "").lower()
+                if not caddr or caddr == "0x0000000000000000000000000000000000000000":
+                    continue
+                typ = (it.get("type") or "").lower()
+                if typ not in ("create", "create2", ""):
+                    continue
+                ts = int(it.get("timeStamp") or tx.get("timeStamp") or 0)
+                found = {
+                    "contract": "0x" + caddr[2:] if caddr.startswith("0x") else caddr,
+                    "tx": txh,
+                    "block": tx.get("blockNumber"),
+                    "utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(ts)),
+                }
+                break  # only first CREATE per tx
+            if found:
+                seen_txs.add(txh)
+                results.insert(0, found)  # build oldest->newest then reinsert for newest-first after loop
+                # We'll normalize order to newest-first after loop anyway
+                # But inserting reversed may be confusing; we'll handle below
+                pass
+            if len(results) >= limit:
+                # results collected in reverse page/tx order; sort newest-first by utc string lex order works (YYYY-mm-dd HH:MM:SS)
+                results_sorted = sorted(results, key=lambda r: r.get("utc") or "", reverse=True)
+                return results_sorted
+        time.sleep(0.12)
+
+    return sorted(results, key=lambda r: r.get("utc") or "", reverse=True)
