@@ -84,7 +84,7 @@
     <script>
       async function refresh() {
         try {
-          const r = await fetch('/api/latest', {cache: 'no-store'});
+          const r = await fetch('/api/latest?t=' + Date.now(), {cache: 'no-store'});
           if (!r.ok) return;
           const data = await r.json();
           const status = document.getElementById('status');
@@ -139,6 +139,7 @@
           // ignore transient errors
         }
       }
+      refresh();
       setInterval(refresh, 10000);
     </script>
   </body>

@@ -129,6 +129,14 @@ def create_app() -> Flask:
         f"Scanner started. Interval={interval_seconds}s, Chain={chain_id}, Deployer={deployer or 'default'}"
     )
 
+    # Add no-cache headers so clients always see fresh JSON and HTML
+    @app.after_request
+    def _no_cache(resp):  # type: ignore[override]
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
     @app.route("/")
     def index():  # type: ignore[override]
         with lock:
