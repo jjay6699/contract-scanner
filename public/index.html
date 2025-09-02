@@ -6,16 +6,26 @@
     <title>Latest Contract Deployments (Base)</title>
     <style>
       :root { color-scheme: light dark; }
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 2rem; }
-      h1 { margin-bottom: 0.25rem; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 1rem; max-width: 960px; margin-inline: auto; }
+      h1 { margin: 0 0 0.25rem 0; line-height: 1.2; }
       .muted { color: #777; font-size: 0.9rem; }
-      .grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.35rem 1rem; margin-top: 1rem; }
+      .grid { display: grid; grid-template-columns: 140px 1fr; gap: 0.35rem 1rem; margin-top: 1rem; align-items: baseline; }
+      .label { opacity: 0.8; font-size: 0.9rem; }
+      .value { word-break: break-word; }
       .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
-      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .break { word-break: break-all; overflow-wrap: anywhere; }
       a { text-decoration: none; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 0.25rem; border-bottom: 1px solid #eee; text-align: left; }
       th { border-bottom-color: #ccc; }
+      .table-wrap { overflow: auto; }
+      @media (max-width: 560px) {
+        body { padding: 0.75rem; }
+        .grid { grid-template-columns: 1fr; }
+        .label { margin-top: 0.5rem; }
+        .value strong { display: inline-block; margin-top: -0.1rem; }
+      }
     </style>
   </head>
   <body>
@@ -48,11 +58,11 @@
           const addr = state.latest.contract;
           const tx = state.latest.tx;
           html += '<div class="grid">';
-          html += '<div>Last Scan</div><div><strong>' + (state.last_run_utc || '') + '</strong></div>';
-          html += '<div>Contract</div><div><a target="_blank" href="https://basescan.org/address/' + addr + '">' + addr + '</a></div>';
-          html += '<div>Block</div><div>' + (state.latest.block || '') + '</div>';
-          html += '<div>Tx</div><div><a target="_blank" href="https://basescan.org/tx/' + tx + '">' + tx + '</a></div>';
-          html += '<div>UTC</div><div>' + (state.latest.utc || '') + '</div>';
+          html += '<div class="label">Last Scan</div><div class="value"><strong>' + (state.last_run_utc || '') + '</strong></div>';
+          html += '<div class="label">Contract</div><div class="value mono break"><a target="_blank" rel="noopener" href="https://basescan.org/address/' + addr + '">' + addr + '</a></div>';
+          html += '<div class="label">Block</div><div class="value">' + (state.latest.block || '') + '</div>';
+          html += '<div class="label">Tx</div><div class="value mono break"><a target="_blank" rel="noopener" href="https://basescan.org/tx/' + tx + '">' + tx + '</a></div>';
+          html += '<div class="label">UTC</div><div class="value">' + (state.latest.utc || '') + '</div>';
           html += '</div>';
         } else {
           html += '<div>No result yet. Last scan: ' + (state.last_run_utc || 'pending...') + '</div>';
@@ -65,7 +75,7 @@
         let h = '<h2 style="margin-top:0">Last ' + historyMax + ' Deployments</h2>';
         const history = state.history || [];
         if (history.length > 0) {
-          h += '<div style="overflow:auto">';
+          h += '<div class="table-wrap">';
           h += '<table><thead><tr>';
           h += '<th>UTC</th><th>Contract</th><th>Block</th><th>Tx</th>';
           h += '</tr></thead><tbody>';
@@ -74,9 +84,9 @@
             const t = item.tx;
             h += '<tr>';
             h += '<td style="white-space: nowrap;">' + (item.utc || '') + '</td>';
-            h += '<td><a target="_blank" href="https://basescan.org/address/' + c + '">' + c + '</a></td>';
+            h += '<td class="mono break"><a target="_blank" rel="noopener" href="https://basescan.org/address/' + c + '">' + c + '</a></td>';
             h += '<td>' + (item.block || '') + '</td>';
-            h += '<td><a target="_blank" href="https://basescan.org/tx/' + t + '">' + t + '</a></td>';
+            h += '<td class="mono break"><a target="_blank" rel="noopener" href="https://basescan.org/tx/' + t + '">' + t + '</a></td>';
             h += '</tr>';
           }
           h += '</tbody></table></div>';
@@ -100,4 +110,3 @@
     </script>
   </body>
   </html>
-
