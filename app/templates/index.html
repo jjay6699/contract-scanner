@@ -14,7 +14,9 @@
       .value { word-break: break-word; }
       .card { border: 1px solid #ccc; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-      .break { word-break: break-all; overflow-wrap: anywhere; }
+      .break { word-break: break-word; overflow-wrap: anywhere; }
+      .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28ch; display: inline-block; vertical-align: bottom; }
+      @media (max-width: 560px) {.trunc { max-width: 18ch; }}
       a { text-decoration: none; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 0.25rem; border-bottom: 1px solid #eee; text-align: left; }
@@ -82,6 +84,12 @@
     <div class="muted" style="margin-top: 0.75rem;">Total runs: {{ runs }} · Started: {{ started_at }}</div>
 
     <script>
+      function shortHex(s) {
+        if (!s) return '';
+        if (s.length <= 12) return s;
+        return s.slice(0, 6) + '…' + s.slice(-4);
+      }
+
       async function refresh() {
         try {
           const r = await fetch('/api/latest?t=' + Date.now(), {cache: 'no-store'});
@@ -94,9 +102,9 @@
             html += '<div class="label">Last Scan</div><div class="value"><strong>' + (data.last_run_utc || '') + '</strong></div>';
             const addr = data.latest.contract;
             const tx = data.latest.tx;
-            html += '<div class="label">Contract</div><div class="value mono break"><a target="_blank" rel="noopener" href="https://basescan.org/address/' + addr + '">' + addr + '</a></div>';
+            html += '<div class="label">Contract</div><div class="value mono"><a class="trunc" title="' + addr + '" target="_blank" rel="noopener" href="https://basescan.org/address/' + addr + '">' + shortHex(addr) + '</a></div>';
             html += '<div class="label">Block</div><div class="value">' + (data.latest.block || '') + '</div>';
-            html += '<div class="label">Tx</div><div class="value mono break"><a target="_blank" rel="noopener" href="https://basescan.org/tx/' + tx + '">' + tx + '</a></div>';
+            html += '<div class="label">Tx</div><div class="value mono"><a class="trunc" title="' + tx + '" target="_blank" rel="noopener" href="https://basescan.org/tx/' + tx + '">' + shortHex(tx) + '</a></div>';
             html += '<div class="label">UTC</div><div class="value">' + (data.latest.utc || '') + '</div>';
             html += '</div>';
           } else {
@@ -125,9 +133,9 @@
               const t = item.tx;
               h += '<tr>';
               h += '<td style="white-space: nowrap;">' + (item.utc || '') + '</td>';
-              h += '<td class="mono break"><a target="_blank" rel="noopener" href="https://basescan.org/address/' + c + '">' + c + '</a></td>';
+              h += '<td class="mono"><a class="trunc" title="' + c + '" target="_blank" rel="noopener" href="https://basescan.org/address/' + c + '">' + shortHex(c) + '</a></td>';
               h += '<td>' + (item.block || '') + '</td>';
-              h += '<td class="mono break"><a target="_blank" rel="noopener" href="https://basescan.org/tx/' + t + '">' + t + '</a></td>';
+              h += '<td class="mono"><a class="trunc" title="' + t + '" target="_blank" rel="noopener" href="https://basescan.org/tx/' + t + '">' + shortHex(t) + '</a></td>';
               h += '</tr>';
             }
             h += '</tbody></table></div>';
