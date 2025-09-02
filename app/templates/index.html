@@ -135,6 +135,14 @@
             h += '<div>No history yet.</div>';
           }
           historyEl.innerHTML = h;
+
+          // Update footer with latest runs/started
+          const footers = document.querySelectorAll('div.muted');
+          if (footers && footers.length) {
+            const runs = Number(data.runs || 0);
+            const started = data.started_at || '';
+            footers[footers.length - 1].textContent = 'Total runs: ' + runs + ' · Started: ' + started;
+          }
         } catch (e) {
           // ignore transient errors
         }
