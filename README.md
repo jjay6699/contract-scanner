@@ -7,6 +7,17 @@ One‑Click Deploy
 - Enter your `ETHERSCAN_API_KEY` when prompted (others optional).
 - Deploy. The static UI is `/` and serverless APIs are under `/api`.
 
+Always‑On (1‑Click) — Railway
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2Fjjay6699%2Fcontract-scanner&envs=ETHERSCAN_API_KEY,DEPLOYER,CHAIN_ID,HISTORY_MAX&optionalEnvs=DEPLOYER,CHAIN_ID,HISTORY_MAX)
+
+- What you get: a persistent web service running the Flask app with the 60s background scanner (no serverless cron needed).
+- Steps:
+  1. Click the button and connect your GitHub if asked.
+  2. Set `ETHERSCAN_API_KEY` (required). Optional: `DEPLOYER`, `CHAIN_ID=8453`, `HISTORY_MAX=50`.
+  3. Create service. Railway detects the `Procfile` and starts `gunicorn` on `$PORT`.
+  4. Open the service URL; UI at `/`.
+
+
 Overview
 - Scans for the most recent contract created by a given deployer on Base (chain id 8453) using Etherscan v2.
 - Local modes:
