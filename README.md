@@ -1,5 +1,12 @@
 Contract Scanner (Base) — Local + Vercel
 
+One‑Click Deploy
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjjay6699%2Fcontract-scanner&project-name=contract-scanner&repository-name=contract-scanner&env=ETHERSCAN_API_KEY,DEPLOYER,CHAIN_ID,HISTORY_MAX&envDescription=Set%20ETHERSCAN_API_KEY%20(required).%20Optional%3A%20DEPLOYER%2C%20CHAIN_ID%20(8453),%20HISTORY_MAX%20(50).&envLink=https%3A%2F%2Fetherscan.io%2Fmyapikey)
+
+- Click the button above.
+- Enter your `ETHERSCAN_API_KEY` when prompted (others optional).
+- Deploy. The static UI is `/` and serverless APIs are under `/api`.
+
 Overview
 - Scans for the most recent contract created by a given deployer on Base (chain id 8453) using Etherscan v2.
 - Local modes:
