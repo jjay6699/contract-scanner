@@ -81,6 +81,13 @@ def create_app() -> Flask:
             print(f"[telegram] ERROR: {e}")
             return False
 
+    def _short_hex(s: Optional[str], left: int = 6, right: int = 4) -> str:
+        if not s:
+            return ""
+        if len(s) <= left + right + 2:
+            return s
+        return f"{s[:left]}…{s[-right:]}"
+
     def _telegram_send_new(latest: Optional[Dict[str, Any]]) -> None:
         if not latest:
             return
@@ -88,13 +95,14 @@ def create_app() -> Flask:
         tx = latest.get("tx") or ""
         block = latest.get("block") or ""
         utc = latest.get("utc") or ""
+        short_c = _short_hex(contract, 8, 6)
+        short_t = _short_hex(tx, 8, 6)
         text = (
-            "New contract deployment on Base\n"
-            f"Deployer: <code>{(deployer or 'default')}</code>\n"
-            f"Contract: <a href=\"https://basescan.org/address/{contract}\">{contract}</a>\n"
-            f"Tx: <a href=\"https://basescan.org/tx/{tx}\">{tx}</a>\n"
-            f"Block: {block}\n"
-            f"UTC: {utc}"
+            "🆕 <b>New contract on Base</b>\n"
+            f"👤 <b>Deployer:</b> <code>{(deployer or 'default')}</code>\n"
+            f"📄 <b>Contract:</b> <a href=\"https://basescan.org/address/{contract}\">{short_c}</a>\n"
+            f"🔗 <b>Tx:</b> <a href=\"https://basescan.org/tx/{tx}\">{short_t}</a>\n\n"
+            f"⛓ <b>Block:</b> <code>{block}</code>  •  🕰 <b>UTC:</b> <code>{utc}</code>"
         )
         _telegram_send(text)
 
