@@ -40,7 +40,14 @@ def create_app() -> Flask:
                 return v
         return None
 
-    def _telegram_send(text: str, parse_mode: str = "HTML", *, token: Optional[str] = None, chat_id_override: Optional[str] = None) -> bool:
+    def _telegram_send(
+        text: str,
+        parse_mode: str = "HTML",
+        *,
+        token: Optional[str] = None,
+        chat_id_override: Optional[str] = None,
+        reply_markup: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         token = token or _get_env_first(
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_TOKEN",
@@ -61,6 +68,8 @@ def create_app() -> Flask:
                 "parse_mode": parse_mode,
                 "disable_web_page_preview": True,
             }
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
             thread_id = os.environ.get("TELEGRAM_THREAD_ID")
             if thread_id:
                 try:
@@ -106,7 +115,20 @@ def create_app() -> Flask:
             f"🌐 <b>Zora Project</b>\n<a href=\"https://zora.co/coin/base:{contract}\">zora.co/coin/base:{short_c}</a>\n\n"
             f"🕰 <b>UTC</b>\n<code>{utc}</code>"
         )
-        _telegram_send(text)
+        markup: Optional[Dict[str, Any]] = None
+        if os.environ.get("TELEGRAM_BUTTONS", "1").strip().lower() in ("1", "true", "yes"):
+            markup = {
+                "inline_keyboard": [
+                    [
+                        {"text": "Address", "url": f"https://basescan.org/address/{contract}"},
+                        {"text": "Tx", "url": f"https://basescan.org/tx/{tx}"},
+                    ],
+                    [
+                        {"text": "Zora Project", "url": f"https://zora.co/coin/base:{contract}"}
+                    ],
+                ]
+            }
+        _telegram_send(text, reply_markup=markup)
 
     def scanner_loop():
         # Initial slight delay so app can start before first scan logs
