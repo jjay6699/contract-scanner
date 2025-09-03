@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request, abort
 
 from app.scan import scan_latest_created_contract, ScanError
 
@@ -33,30 +33,16 @@ def create_app() -> Flask:
 
     stop_event = threading.Event()
 
-    def _telegram_send_new(latest: Optional[Dict[str, Any]]) -> None:
-        if not latest:
-            return
+    def _telegram_send(text: str, parse_mode: str = "HTML") -> bool:
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
-            return  # Not configured
+            return False  # Not configured
         try:
-            contract = latest.get("contract") or ""
-            tx = latest.get("tx") or ""
-            block = latest.get("block") or ""
-            utc = latest.get("utc") or ""
-            text = (
-                "New contract deployment on Base\n"
-                f"Deployer: <code>{(deployer or 'default')}</code>\n"
-                f"Contract: <a href=\"https://basescan.org/address/{contract}\">{contract}</a>\n"
-                f"Tx: <a href=\"https://basescan.org/tx/{tx}\">{tx}</a>\n"
-                f"Block: {block}\n"
-                f"UTC: {utc}"
-            )
             payload: Dict[str, Any] = {
                 "chat_id": chat_id,
                 "text": text,
-                "parse_mode": "HTML",
+                "parse_mode": parse_mode,
                 "disable_web_page_preview": True,
             }
             thread_id = os.environ.get("TELEGRAM_THREAD_ID")
@@ -73,8 +59,28 @@ def create_app() -> Flask:
             r = requests.post(url, json=payload, timeout=timeout)
             if not r.ok:
                 print(f"[telegram] sendMessage failed: {r.status_code} {r.text[:200]}")
+                return False
+            return True
         except Exception as e:
             print(f"[telegram] ERROR: {e}")
+            return False
+
+    def _telegram_send_new(latest: Optional[Dict[str, Any]]) -> None:
+        if not latest:
+            return
+        contract = latest.get("contract") or ""
+        tx = latest.get("tx") or ""
+        block = latest.get("block") or ""
+        utc = latest.get("utc") or ""
+        text = (
+            "New contract deployment on Base\n"
+            f"Deployer: <code>{(deployer or 'default')}</code>\n"
+            f"Contract: <a href=\"https://basescan.org/address/{contract}\">{contract}</a>\n"
+            f"Tx: <a href=\"https://basescan.org/tx/{tx}\">{tx}</a>\n"
+            f"Block: {block}\n"
+            f"UTC: {utc}"
+        )
+        _telegram_send(text)
 
     def scanner_loop():
         # Initial slight delay so app can start before first scan logs
@@ -177,6 +183,16 @@ def create_app() -> Flask:
     print(
         f"Scanner started. Interval={interval_seconds}s, Chain={chain_id}, Deployer={deployer or 'default'}"
     )
+    # Optional startup ping to Telegram
+    if os.environ.get("TELEGRAM_STARTUP_PING", "0").strip().lower() in ("1", "true", "yes"):
+        _telegram_send(
+            (
+                "✅ Contract scanner started\n"
+                f"Chain: {chain_id}\n"
+                f"Deployer: <code>{(deployer or 'default')}</code>\n"
+                f"Interval: {interval_seconds}s"
+            )
+        )
 
     # Add no-cache headers so clients always see fresh JSON and HTML
     @app.after_request
@@ -204,6 +220,22 @@ def create_app() -> Flask:
     def api_latest():  # type: ignore[override]
         with lock:
             return jsonify(state)
+
+    @app.route("/api/test_telegram")
+    def api_test_telegram():  # type: ignore[override]
+        secret_env = os.environ.get("TELEGRAM_TEST_SECRET")
+        if secret_env:
+            if request.args.get("secret") != secret_env:
+                return abort(403)
+        ok = _telegram_send(
+            (
+                "✅ Telegram test from Contract Scanner\n"
+                f"Chain: {chain_id}\n"
+                f"Deployer: <code>{(deployer or 'default')}</code>\n"
+                "This is a one-off test message."
+            )
+        )
+        return jsonify({"ok": bool(ok)})
 
     @app.route("/healthz")
     def healthz():  # type: ignore[override]

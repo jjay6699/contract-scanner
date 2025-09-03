@@ -75,7 +75,14 @@ Configuration (env vars)
     - `TELEGRAM_THREAD_ID` (optional): topic/thread ID for supergroups.
     - `TELEGRAM_SILENT` (optional): `1`/`true` to send silently.
     - `TELEGRAM_TIMEOUT` (optional): HTTP timeout in seconds (default `10`).
+    - `TELEGRAM_STARTUP_PING` (optional): `1` to send a startup message when the app boots.
+    - `TELEGRAM_TEST_SECRET` (optional): if set, `/api/test_telegram?secret=...` must match this value.
   - `HOST` / `PORT`: default `127.0.0.1:8000`.
+
+Test a Telegram message
+- Option A (recommended): Restart the service with `TELEGRAM_STARTUP_PING=1` set. On boot, the app sends a one-time message.
+- Option B: Call the test endpoint on your service: `GET /api/test_telegram`.
+  - If you set `TELEGRAM_TEST_SECRET`, call `/api/test_telegram?secret=YOUR_SECRET`.
 - Serverless (Vercel) only
   - `MAX_PAGES_ON_DEMAND`: default `3` (when KV is not configured and `/api/latest` scans on demand).
   - KV (optional, enables persistent history):
