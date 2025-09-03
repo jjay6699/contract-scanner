@@ -3,6 +3,8 @@ import threading
 import time
 from typing import Any, Dict, Optional
 
+import requests
+
 from flask import Flask, jsonify, render_template
 
 from app.scan import scan_latest_created_contract, ScanError
@@ -30,6 +32,49 @@ def create_app() -> Flask:
     bootstrap_pages = int(os.environ.get("BOOTSTRAP_MAX_PAGES", "30"))
 
     stop_event = threading.Event()
+
+    def _telegram_send_new(latest: Optional[Dict[str, Any]]) -> None:
+        if not latest:
+            return
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        if not token or not chat_id:
+            return  # Not configured
+        try:
+            contract = latest.get("contract") or ""
+            tx = latest.get("tx") or ""
+            block = latest.get("block") or ""
+            utc = latest.get("utc") or ""
+            text = (
+                "New contract deployment on Base\n"
+                f"Deployer: <code>{(deployer or 'default')}</code>\n"
+                f"Contract: <a href=\"https://basescan.org/address/{contract}\">{contract}</a>\n"
+                f"Tx: <a href=\"https://basescan.org/tx/{tx}\">{tx}</a>\n"
+                f"Block: {block}\n"
+                f"UTC: {utc}"
+            )
+            payload: Dict[str, Any] = {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            }
+            thread_id = os.environ.get("TELEGRAM_THREAD_ID")
+            if thread_id:
+                try:
+                    payload["message_thread_id"] = int(thread_id)
+                except ValueError:
+                    pass
+            silent = os.environ.get("TELEGRAM_SILENT", "0").strip().lower() in ("1", "true", "yes")
+            if silent:
+                payload["disable_notification"] = True
+            timeout = int(os.environ.get("TELEGRAM_TIMEOUT", "10"))
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            r = requests.post(url, json=payload, timeout=timeout)
+            if not r.ok:
+                print(f"[telegram] sendMessage failed: {r.status_code} {r.text[:200]}")
+        except Exception as e:
+            print(f"[telegram] ERROR: {e}")
 
     def scanner_loop():
         # Initial slight delay so app can start before first scan logs
@@ -94,6 +139,7 @@ def create_app() -> Flask:
                 err = str(e)
                 print(f"[scan {started_utc}] ERROR: {err}")
 
+            notify_latest: Optional[Dict[str, Any]] = None
             with lock:
                 prev_latest = state.get("latest") or {}
                 # Update history on change (dedupe by tx hash)
@@ -113,12 +159,15 @@ def create_app() -> Flask:
                         if len(deduped) >= history_max:
                             break
                     state["history"] = deduped
+                    notify_latest = latest
                 state["latest"] = latest
                 state["last_run_utc"] = started_utc
                 state["last_error"] = err
                 state["runs"] = int(state.get("runs", 0)) + 1
 
             # Sleep until next interval, but allow fast shutdown via event
+            if notify_latest:
+                _telegram_send_new(notify_latest)
             stop_event.wait(interval_seconds)
 
     # Start background thread

@@ -32,6 +32,7 @@ Features
 - Latest result plus rolling history (default last 50), links to Basescan.
 - 10‑second interval by default (local). Vercel schedules every minute via `vercel.json`.
 - Minimal deps: only Flask + requests for the web UI; console runner uses stdlib.
+ - Optional Telegram alerts on new deployments (enable via env vars).
 
 Project Structure
 - `monitor.py`: Console runner (no extra installs).
@@ -67,7 +68,13 @@ Configuration (env vars)
   - `CHAIN_ID`: default `8453`.
   - `HISTORY_MAX`: default `50`.
 - Local only (Flask)
-- `SCAN_INTERVAL_SECONDS`: default `10`.
+  - `SCAN_INTERVAL_SECONDS`: default `10`.
+  - Telegram (optional, sends a message when a NEW contract is detected by the background scanner):
+    - `TELEGRAM_BOT_TOKEN`: bot token from @BotFather.
+    - `TELEGRAM_CHAT_ID`: chat/channel ID (e.g. `123456789` or `-100xxxxxxxxxx`).
+    - `TELEGRAM_THREAD_ID` (optional): topic/thread ID for supergroups.
+    - `TELEGRAM_SILENT` (optional): `1`/`true` to send silently.
+    - `TELEGRAM_TIMEOUT` (optional): HTTP timeout in seconds (default `10`).
   - `HOST` / `PORT`: default `127.0.0.1:8000`.
 - Serverless (Vercel) only
   - `MAX_PAGES_ON_DEMAND`: default `3` (when KV is not configured and `/api/latest` scans on demand).
