@@ -106,17 +106,28 @@ def create_app() -> Flask:
         utc = latest.get("utc") or ""
         short_c = _short_hex(contract, 8, 6)
         short_t = _short_hex(tx, 8, 6)
+        show_buttons = os.environ.get("TELEGRAM_BUTTONS", "1").strip().lower() in ("1", "true", "yes")
+        # Base header + deployer
         text = (
             "<b>New contract deployed on Zora.co</b>\n\n"
             f"👤 <b>Deployer</b>\n<code>{(deployer or 'default')}</code>\n\n"
-            f"📄 <b>Contract</b>\n<a href=\"https://basescan.org/address/{contract}\">{short_c}</a>\n\n"
-            f"🔗 <b>Tx</b>\n<a href=\"https://basescan.org/tx/{tx}\">{short_t}</a>\n\n"
-            f"⛓ <b>Block</b>\n<code>{block}</code>\n\n"
-            f"🌐 <b>Zora Project</b>\n<a href=\"https://zora.co/coin/base:{contract}\">zora.co/coin/base:{short_c}</a>\n\n"
-            f"🕰 <b>UTC</b>\n<code>{utc}</code>"
         )
+        # Only include the long link sections if buttons are disabled
+        if not show_buttons:
+            text += (
+                f"📄 <b>Contract</b>\n<a href=\"https://basescan.org/address/{contract}\">{short_c}</a>\n\n"
+                f"🔗 <b>Tx</b>\n<a href=\"https://basescan.org/tx/{tx}\">{short_t}</a>\n\n"
+            )
+        # Always include block and UTC; add Zora Project section only when not using buttons
+        text += f"⛓ <b>Block</b>\n<code>{block}</code>\n\n"
+        if not show_buttons:
+            text += (
+                f"🌐 <b>Zora Project</b>\n<a href=\"https://zora.co/coin/base:{contract}\">zora.co/coin/base:{short_c}</a>\n\n"
+            )
+        text += f"🕰 <b>UTC</b>\n<code>{utc}</code>"
+
         markup: Optional[Dict[str, Any]] = None
-        if os.environ.get("TELEGRAM_BUTTONS", "1").strip().lower() in ("1", "true", "yes"):
+        if show_buttons:
             markup = {
                 "inline_keyboard": [
                     [
