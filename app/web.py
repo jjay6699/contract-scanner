@@ -33,9 +33,25 @@ def create_app() -> Flask:
 
     stop_event = threading.Event()
 
+    def _get_env_first(*names: str) -> Optional[str]:
+        for n in names:
+            v = os.environ.get(n)
+            if v:
+                return v
+        return None
+
     def _telegram_send(text: str, parse_mode: str = "HTML") -> bool:
-        token = os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        token = _get_env_first(
+            "TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_TOKEN",
+            "BOT_TOKEN",
+            "TG_BOT_TOKEN",
+        )
+        chat_id = _get_env_first(
+            "TELEGRAM_CHAT_ID",
+            "TELEGRAM_CHANNEL_ID",
+            "TG_CHAT_ID",
+        )
         if not token or not chat_id:
             return False  # Not configured
         try:
@@ -184,9 +200,15 @@ def create_app() -> Flask:
         f"Scanner started. Interval={interval_seconds}s, Chain={chain_id}, Deployer={deployer or 'default'}"
     )
     # Optional startup ping to Telegram
-    tg_token_present = bool(os.environ.get("TELEGRAM_BOT_TOKEN"))
-    tg_chat_present = bool(os.environ.get("TELEGRAM_CHAT_ID"))
-    print(f"Telegram configured: token={'Y' if tg_token_present else 'N'}, chat={'Y' if tg_chat_present else 'N'}")
+    tg_token_present = bool(
+        _get_env_first("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN", "TG_BOT_TOKEN")
+    )
+    tg_chat_present = bool(
+        _get_env_first("TELEGRAM_CHAT_ID", "TELEGRAM_CHANNEL_ID", "TG_CHAT_ID")
+    )
+    print(
+        f"Telegram configured: token={'Y' if tg_token_present else 'N'}, chat={'Y' if tg_chat_present else 'N'}"
+    )
     if os.environ.get("TELEGRAM_STARTUP_PING", "0").strip().lower() in ("1", "true", "yes"):
         _telegram_send(
             (
@@ -245,8 +267,17 @@ def create_app() -> Flask:
             return jsonify({"ok": bool(ok)})
 
         # Debug mode: return HTTP status and body from Telegram
-        token = os.environ.get("TELEGRAM_BOT_TOKEN")
-        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        token = _get_env_first(
+            "TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_TOKEN",
+            "BOT_TOKEN",
+            "TG_BOT_TOKEN",
+        )
+        chat_id = _get_env_first(
+            "TELEGRAM_CHAT_ID",
+            "TELEGRAM_CHANNEL_ID",
+            "TG_CHAT_ID",
+        )
         token_present = bool(token)
         chat_present = bool(chat_id)
         if not token_present or not chat_present:
