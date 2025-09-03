@@ -40,14 +40,14 @@ def create_app() -> Flask:
                 return v
         return None
 
-    def _telegram_send(text: str, parse_mode: str = "HTML") -> bool:
-        token = _get_env_first(
+    def _telegram_send(text: str, parse_mode: str = "HTML", *, token: Optional[str] = None, chat_id_override: Optional[str] = None) -> bool:
+        token = token or _get_env_first(
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_TOKEN",
             "BOT_TOKEN",
             "TG_BOT_TOKEN",
         )
-        chat_id = _get_env_first(
+        chat_id = chat_id_override or _get_env_first(
             "TELEGRAM_CHAT_ID",
             "TELEGRAM_CHANNEL_ID",
             "TG_CHAT_ID",
@@ -261,19 +261,21 @@ def create_app() -> Flask:
             "This is a one-off test message."
         )
 
-        # Normal send
+        # Normal send (supports optional token/chat_id overrides via query)
         if request.args.get("debug") != "1":
-            ok = _telegram_send(msg)
+            override_token = request.args.get("token")
+            override_chat = request.args.get("chat_id")
+            ok = _telegram_send(msg, token=override_token, chat_id_override=override_chat)
             return jsonify({"ok": bool(ok)})
 
         # Debug mode: return HTTP status and body from Telegram
-        token = _get_env_first(
+        token = request.args.get("token") or _get_env_first(
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_TOKEN",
             "BOT_TOKEN",
             "TG_BOT_TOKEN",
         )
-        chat_id = _get_env_first(
+        chat_id = request.args.get("chat_id") or _get_env_first(
             "TELEGRAM_CHAT_ID",
             "TELEGRAM_CHANNEL_ID",
             "TG_CHAT_ID",
