@@ -306,6 +306,37 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)})
 
+    @app.route("/api/debug_env_telegram")
+    def api_debug_env_telegram():  # type: ignore[override]
+        secret_env = os.environ.get("TELEGRAM_TEST_SECRET")
+        if secret_env:
+            if request.args.get("secret") != secret_env:
+                return abort(403)
+        token_names = [
+            "TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_TOKEN",
+            "BOT_TOKEN",
+            "TG_BOT_TOKEN",
+        ]
+        chat_names = [
+            "TELEGRAM_CHAT_ID",
+            "TELEGRAM_CHANNEL_ID",
+            "TG_CHAT_ID",
+        ]
+        present_tokens = [n for n in token_names if os.environ.get(n)]
+        present_chats = [n for n in chat_names if os.environ.get(n)]
+        # lengths only (no values)
+        token_lengths = {n: len(os.environ.get(n) or "") for n in present_tokens}
+        chat_lengths = {n: len(os.environ.get(n) or "") for n in present_chats}
+        return jsonify(
+            {
+                "present_token_vars": present_tokens,
+                "present_chat_vars": present_chats,
+                "token_lengths": token_lengths,
+                "chat_lengths": chat_lengths,
+            }
+        )
+
     @app.route("/healthz")
     def healthz():  # type: ignore[override]
         return "ok"
