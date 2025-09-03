@@ -184,6 +184,9 @@ def create_app() -> Flask:
         f"Scanner started. Interval={interval_seconds}s, Chain={chain_id}, Deployer={deployer or 'default'}"
     )
     # Optional startup ping to Telegram
+    tg_token_present = bool(os.environ.get("TELEGRAM_BOT_TOKEN"))
+    tg_chat_present = bool(os.environ.get("TELEGRAM_CHAT_ID"))
+    print(f"Telegram configured: token={'Y' if tg_token_present else 'N'}, chat={'Y' if tg_chat_present else 'N'}")
     if os.environ.get("TELEGRAM_STARTUP_PING", "0").strip().lower() in ("1", "true", "yes"):
         _telegram_send(
             (
@@ -244,8 +247,10 @@ def create_app() -> Flask:
         # Debug mode: return HTTP status and body from Telegram
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-        if not token or not chat_id:
-            return jsonify({"ok": False, "configured": False})
+        token_present = bool(token)
+        chat_present = bool(chat_id)
+        if not token_present or not chat_present:
+            return jsonify({"ok": False, "configured": False, "token_present": token_present, "chat_id_present": chat_present})
         payload: Dict[str, Any] = {
             "chat_id": chat_id,
             "text": msg,
