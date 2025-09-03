@@ -103,6 +103,7 @@ def create_app() -> Flask:
             f"📄 <b>Contract</b>\n<a href=\"https://basescan.org/address/{contract}\">{short_c}</a>\n\n"
             f"🔗 <b>Tx</b>\n<a href=\"https://basescan.org/tx/{tx}\">{short_t}</a>\n\n"
             f"⛓ <b>Block</b>\n<code>{block}</code>\n\n"
+            f"🌐 <b>Zora Project</b>\n<a href=\"https://zora.co/coin/base:{contract}\">zora.co/coin/base:{short_c}</a>\n\n"
             f"🕰 <b>UTC</b>\n<code>{utc}</code>"
         )
         _telegram_send(text)
