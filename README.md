@@ -10,7 +10,7 @@ One‑Click Deploy
 Always‑On (1‑Click) — Railway
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2Fjjay6699%2Fcontract-scanner&envs=ETHERSCAN_API_KEY,DEPLOYER,CHAIN_ID,HISTORY_MAX&optionalEnvs=DEPLOYER,CHAIN_ID,HISTORY_MAX)
 
-- What you get: a persistent web service running the Flask app with the 60s background scanner (no serverless cron needed).
+- What you get: a persistent web service running the Flask app with the 10s background scanner (no serverless cron needed).
 - Steps:
   1. Click the button and connect your GitHub if asked.
   2. Set `ETHERSCAN_API_KEY` (required). Optional: `DEPLOYER`, `CHAIN_ID=8453`, `HISTORY_MAX=50`.
@@ -22,7 +22,7 @@ Overview
 - Scans for the most recent contract created by a given deployer on Base (chain id 8453) using Etherscan v2.
 - Local modes:
   - Console runner (`monitor.py`) every 60s, prints results.
-  - Flask web UI (`app/web.py`) with background scanner every 60s and a live history table.
+  - Flask web UI (`app/web.py`) with background scanner every 10s and a live history table.
 - Vercel serverless:
   - `/api/scan` runs one scan (via Cron every minute) and writes to KV (optional).
   - `/api/latest` serves the latest state; without KV it performs a quick on‑demand scan.
@@ -30,7 +30,7 @@ Overview
 
 Features
 - Latest result plus rolling history (default last 50), links to Basescan.
-- 60‑second interval by default (local). Vercel schedules every minute via `vercel.json`.
+- 10‑second interval by default (local). Vercel schedules every minute via `vercel.json`.
 - Minimal deps: only Flask + requests for the web UI; console runner uses stdlib.
 
 Project Structure
@@ -67,7 +67,7 @@ Configuration (env vars)
   - `CHAIN_ID`: default `8453`.
   - `HISTORY_MAX`: default `50`.
 - Local only (Flask)
-  - `SCAN_INTERVAL_SECONDS`: default `60`.
+- `SCAN_INTERVAL_SECONDS`: default `10`.
   - `HOST` / `PORT`: default `127.0.0.1:8000`.
 - Serverless (Vercel) only
   - `MAX_PAGES_ON_DEMAND`: default `3` (when KV is not configured and `/api/latest` scans on demand).

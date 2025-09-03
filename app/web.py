@@ -22,7 +22,7 @@ def create_app() -> Flask:
     }
     lock = threading.Lock()
 
-    interval_seconds = int(os.environ.get("SCAN_INTERVAL_SECONDS", "60"))
+    interval_seconds = int(os.environ.get("SCAN_INTERVAL_SECONDS", "10"))
     chain_id = int(os.environ.get("CHAIN_ID", "8453"))
     deployer = os.environ.get("DEPLOYER")  # default handled by scan function
     history_max = int(os.environ.get("HISTORY_MAX", "50"))

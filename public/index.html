@@ -52,9 +52,9 @@
 
         const chain = state.chain_id || 8453;
         const deployer = state.deployer || '';
-        const interval = state.interval_seconds || 60;
+        const interval = state.interval_seconds || 10;
         const historyMax = state.history_max || 50;
-        meta.textContent = `Chain ${chain} · Deployer ${deployer} · Scans every ${interval}s`;
+        meta.textContent = `Chain ${chain} · Deployer ${deployer} · Scans every ${interval} seconds`;
 
         let html = '';
         if (state.latest) {

@@ -37,8 +37,7 @@ def handler(request):
             "chain_id": int(os.environ.get("CHAIN_ID", "8453")),
             "deployer": os.environ.get("DEPLOYER") or "0x048ef1062cbb39B338Ac2685dA72adf104b4cEF5",
             "history_max": int(os.environ.get("HISTORY_MAX", "50")),
-            "interval_seconds": int(os.environ.get("SCAN_INTERVAL_SECONDS", "60")),
+            "interval_seconds": int(os.environ.get("SCAN_INTERVAL_SECONDS", "10")),
             "kv": False,
         }
     )
-

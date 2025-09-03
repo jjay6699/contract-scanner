@@ -56,7 +56,7 @@ def handler(request):  # Vercel Python uses `handler`
             "chain_id": int(os.environ.get("CHAIN_ID", "8453")),
             "deployer": os.environ.get("DEPLOYER") or "0x048ef1062cbb39B338Ac2685dA72adf104b4cEF5",
             "history_max": history_max,
-            "interval_seconds": int(os.environ.get("SCAN_INTERVAL_SECONDS", "60")),
+            "interval_seconds": int(os.environ.get("SCAN_INTERVAL_SECONDS", "10")),
         }
         kv_set_json("scanner:state", state)
 
@@ -73,4 +73,3 @@ def handler(request):  # Vercel Python uses `handler`
             "kv": kv_available(),
         }
     )
-
