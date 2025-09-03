@@ -337,6 +337,17 @@ def create_app() -> Flask:
             }
         )
 
+    @app.route("/api/debug_env_keys")
+    def api_debug_env_keys():  # type: ignore[override]
+        secret_env = os.environ.get("TELEGRAM_TEST_SECRET")
+        if secret_env:
+            if request.args.get("secret") != secret_env:
+                return abort(403)
+        # Return only env variable names (no values)
+        keys = sorted(list(os.environ.keys()))
+        # Filter common sensitive provider keys out of the list if desired (names only are usually safe)
+        return jsonify({"keys": keys[:500], "count": len(keys)})
+
     @app.route("/healthz")
     def healthz():  # type: ignore[override]
         return "ok"
