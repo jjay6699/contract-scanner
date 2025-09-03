@@ -227,15 +227,48 @@ def create_app() -> Flask:
         if secret_env:
             if request.args.get("secret") != secret_env:
                 return abort(403)
-        ok = _telegram_send(
-            (
-                "✅ Telegram test from Contract Scanner\n"
-                f"Chain: {chain_id}\n"
-                f"Deployer: <code>{(deployer or 'default')}</code>\n"
-                "This is a one-off test message."
-            )
+
+        # Build message once
+        msg = (
+            "✅ Telegram test from Contract Scanner\n"
+            f"Chain: {chain_id}\n"
+            f"Deployer: <code>{(deployer or 'default')}</code>\n"
+            "This is a one-off test message."
         )
-        return jsonify({"ok": bool(ok)})
+
+        # Normal send
+        if request.args.get("debug") != "1":
+            ok = _telegram_send(msg)
+            return jsonify({"ok": bool(ok)})
+
+        # Debug mode: return HTTP status and body from Telegram
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        if not token or not chat_id:
+            return jsonify({"ok": False, "configured": False})
+        payload: Dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": msg,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        thread_id = os.environ.get("TELEGRAM_THREAD_ID")
+        if thread_id:
+            try:
+                payload["message_thread_id"] = int(thread_id)
+            except ValueError:
+                pass
+        silent = os.environ.get("TELEGRAM_SILENT", "0").strip().lower() in ("1", "true", "yes")
+        if silent:
+            payload["disable_notification"] = True
+        timeout = int(os.environ.get("TELEGRAM_TIMEOUT", "10"))
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        try:
+            r = requests.post(url, json=payload, timeout=timeout)
+            body = r.text[:500]
+            return jsonify({"ok": bool(r.ok), "status": r.status_code, "body": body})
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)})
 
     @app.route("/healthz")
     def healthz():  # type: ignore[override]
